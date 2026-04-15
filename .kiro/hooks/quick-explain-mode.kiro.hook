@@ -1,0 +1,15 @@
+{
+  "enabled": true,
+  "name": "Quick Explain Mode",
+  "description": "When triggered, provides explanations in three parts: core concept, simple analogy, and practical code example",
+  "version": "1",
+  "when": {
+    "type": "promptSubmit"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "When answering questions, structure your response in this format:\n\n1. Core Concept: Provide a concise introduction focusing on the fundamental idea (2-3 sentences max)\n2. Simple Analogy: Explain using an example a 5-year-old could understand\n3. Practical Usage: Show a simple, real-world code example demonstrating the concept\n\nKeep it brief and focused on clarity over completeness."
+  },
+  "workspaceFolderName": "xhs_auto_login_service",
+  "shortName": "quick-explain-mode"
+}

@@ -1,0 +1,15 @@
+{
+  "enabled": true,
+  "name": "Code Cleanup Assistant",
+  "description": "Automatically reviews Python files when edited to suggest removing unnecessary print statements and exception handling, asking for approval before each deletion",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Clean up this code by removing unnecessary elements. Focus on:\n1. **Remove most print statements** - Keep only essential output\n2. **Remove exception handling** - Delete all try/catch blocks for unlikely errors  \n3. \"\"remove if/else statment which also used for exception handle\"\"\nGoal: Make the code more concise while preserving core functionality."
+  },
+  "workspaceFolderName": "WorkBase",
+  "shortName": "code-cleanup-hook"
+}

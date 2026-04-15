@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Concise Response Guard",
+  "description": "Monitors agent responses to ensure they stay concise and focused, avoiding creation of test files, examples, or documentation unless explicitly requested",
+  "version": "1",
+  "when": {
+    "type": "promptSubmit"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Keep your response concise and focused. Do not create test files, examples, or documentation unless the user explicitly requests them. Focus only on what was asked."
+  }
+}

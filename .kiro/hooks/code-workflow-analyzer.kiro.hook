@@ -1,0 +1,15 @@
+{
+  "enabled": true,
+  "name": "Code Workflow Analyzer",
+  "description": "Reviews the current file by analyzing each function/module and creates a workflow diagram showing the execution flow",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Review the current file: analyze each function/module, then create a workflow diagram showing the execution flow(if it has excute process)."
+  },
+  "workspaceFolderName": "WorkBase",
+  "shortName": "code-workflow-analyzer"
+}

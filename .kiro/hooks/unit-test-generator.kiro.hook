@@ -1,0 +1,15 @@
+{
+  "enabled": true,
+  "name": "Unit Test Generator",
+  "description": "Creates a unit test file for the current file with one test function for each function, keeping tests minimal and focused.",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Create a unit test file for the current file. Write one test function for each function. Keep tests minimal and focused."
+  },
+  "workspaceFolderName": "WorkBase",
+  "shortName": "unit-test-generator"
+}
