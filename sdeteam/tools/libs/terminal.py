@@ -29,7 +29,7 @@ class Terminal:
             self.command_terminator = "\r\n"
             self.pwd_command = "cd"
         else:
-            self.shell_command = ["bash"]  # Linux / macOS
+            self.shell_command = ["bash", "--norc", "--noprofile"]  # Linux / macOS, skip startup scripts to avoid output interference
             self.executable = "bash"
             self.command_terminator = "\n"
             self.pwd_command = "pwd"
@@ -46,6 +46,7 @@ class Terminal:
 
     async def _start_process(self):
         # Start a persistent shell process
+        logger.info(f"Terminal: starting shell process with command: {self.shell_command}, cwd: {DEFAULT_WORKSPACE_ROOT}")
         self.process = await asyncio.create_subprocess_exec(
             *self.shell_command,
             stdin=PIPE,
@@ -55,16 +56,18 @@ class Terminal:
             env=os.environ.copy(),
             cwd=str(DEFAULT_WORKSPACE_ROOT) if sys.platform.startswith("win") else DEFAULT_WORKSPACE_ROOT,  # Windows
         )
+        logger.info(f"Terminal: shell process started, pid={self.process.pid}")
         await self._check_state()
 
     async def _check_state(self):
         """
         Check the state of the terminal, e.g. the current directory.
         """
+        logger.info("Terminal: checking state with pwd command...")
         output = await self.run_command(self.pwd_command)
-        logger.info("The terminal is at:", output)
+        logger.info(f"Terminal: current directory is: {output.strip()}")
 
-    async def run_command(self, cmd: str, daemon=False) -> str:
+    async def run_command(self, cmd: str, daemon=False, timeout: int = 120) -> str:
         """
         Executes a specified command in the terminal and streams the output back in real time.
         This command maintains state across executions, such as the current directory,
@@ -74,6 +77,7 @@ class Terminal:
             cmd (str): The command to execute in the terminal.
             daemon (bool): If True, executes the command in an asynchronous task, allowing
                            the main program to continue execution.
+            timeout (int): Maximum seconds to wait for command output. Defaults to 120.
         Returns:
             str: The command's output or an empty string if `daemon` is True. Remember that
                  when `daemon` is True, use the `get_stdout_output` method to get the output.
@@ -102,7 +106,11 @@ class Terminal:
         if daemon:
             asyncio.create_task(self._read_and_process_output(cmd))
         else:
-            output += await self._read_and_process_output(cmd)
+            try:
+                output += await asyncio.wait_for(self._read_and_process_output(cmd), timeout=timeout)
+            except asyncio.TimeoutError:
+                logger.error(f"Terminal.run_command timed out after {timeout}s for cmd: {cmd}")
+                output += f"\n[ERROR] Command timed out after {timeout} seconds."
 
         return output
 
@@ -153,21 +161,23 @@ class Terminal:
             # We read bytes directly from stdout instead of text because when reading text,
             # '\r' is changed to '\n', resulting in excessive output.
             tmp = b""
+            marker_bytes = END_MARKER_VALUE.rstrip("\n").encode()
             while True:
                 output = tmp + await self.process.stdout.read(1)
                 if not output:
                     continue
+                # Check if the marker is in the accumulated buffer before splitting
+                if marker_bytes in output:
+                    decoded = output.decode(errors="ignore")
+                    ix = decoded.find(marker_bytes.decode())
+                    before_marker = decoded[:ix]
+                    if before_marker.strip():
+                        await observer.async_report(before_marker, "output")
+                        cmd_output.append(before_marker)
+                    return "".join(cmd_output)
                 *lines, tmp = output.splitlines(True)
                 for line in lines:
                     line = line.decode(errors="ignore")
-                    ix = line.rfind(END_MARKER_VALUE)
-                    if ix >= 0:
-                        line = line[:ix]
-                        if line:
-                            await observer.async_report(line, "output")
-                            # report stdout in real-time
-                            cmd_output.append(line)
-                        return "".join(cmd_output)
                     # log stdout in real-time
                     await observer.async_report(line, "output")
                     cmd_output.append(line)

@@ -510,6 +510,7 @@ class Role(BaseRole, SerializationMixin, ContextMixin, BaseModel):
     @role_raise_decorator
     async def run(self, with_message=None) -> Message | None:
         """Observe, and think and act based on the results of the observation"""
+        logger.info(f"{self._setting}: run() started, with_message={bool(with_message)}")
         if with_message:
             msg = None
             if isinstance(with_message, str):
@@ -526,12 +527,19 @@ class Role(BaseRole, SerializationMixin, ContextMixin, BaseModel):
             logger.debug(f"{self._setting}: no news. waiting.")
             return
 
-        rsp = await self.react()
+        logger.info(f"{self._setting}: observed news, entering react(). react_mode={self.rc.react_mode}")
+        try:
+            rsp = await self.react()
+            logger.info(f"{self._setting}: react() completed. rsp type={type(rsp).__name__}, content={str(rsp.content)[:100] if rsp else 'None'}")
+        except Exception as e:
+            logger.error(f"{self._setting}: react() raised exception: {e}", exc_info=True)
+            raise
 
         # Reset the next action to be taken.
         self.set_todo(None)
         # Send the response message to the Environment object to have it relay the message to the subscribers.
         self.publish_message(rsp)
+        logger.info(f"{self._setting}: run() completed, message published")
         return rsp
 
     @property

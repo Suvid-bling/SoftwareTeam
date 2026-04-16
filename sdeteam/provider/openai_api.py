@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
-from typing import Optional, Union
+from typing import AsyncIterator, Optional, Union
 
 from openai import APIConnectionError, AsyncOpenAI, AsyncStream
 from openai._base_client import AsyncHttpxClientWrapper
@@ -83,6 +84,20 @@ class OpenAILLM(BaseLLM):
 
         return params
 
+    @staticmethod
+    async def _iter_with_timeout(aiter: AsyncStream, timeout: int) -> AsyncIterator:
+        """Wrap an async iterator with a per-chunk timeout to detect dead connections (CLOSE_WAIT)."""
+        ait = aiter.__aiter__()
+        while True:
+            try:
+                chunk = await asyncio.wait_for(ait.__anext__(), timeout=timeout)
+                yield chunk
+            except StopAsyncIteration:
+                break
+            except asyncio.TimeoutError:
+                logger.warning(f"Stream chunk timeout after {timeout}s, connection likely dead. Aborting stream.")
+                break
+
     async def _achat_completion_stream(self, messages: list[dict], timeout=USE_CONFIG_TIMEOUT) -> str:
         response: AsyncStream[ChatCompletionChunk] = await self.aclient.chat.completions.create(
             **self._cons_kwargs(messages, timeout=self.get_timeout(timeout)), stream=True
@@ -91,7 +106,8 @@ class OpenAILLM(BaseLLM):
         collected_messages = []
         collected_reasoning_messages = []
         has_finished = False
-        async for chunk in response:
+        chunk_timeout = self.get_timeout(timeout)  # reuse the configured timeout for per-chunk deadline
+        async for chunk in self._iter_with_timeout(response, chunk_timeout):
             if not chunk.choices:
                 continue
 

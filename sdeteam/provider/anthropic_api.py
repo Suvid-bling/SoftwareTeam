@@ -50,7 +50,17 @@ class AnthropicLLM(BaseLLM):
         return text
 
     async def _achat_completion(self, messages: list[dict], timeout: int = USE_CONFIG_TIMEOUT) -> Message:
-        resp: Message = await self.aclient.messages.create(**self._const_kwargs(messages))
+        from sdeteam.logs import logger
+        logger.info(f"AnthropicLLM._achat_completion() called, model={self.model}, timeout={timeout}, msg_count={len(messages)}")
+        try:
+            resp: Message = await self.aclient.messages.create(
+                **self._const_kwargs(messages),
+                timeout=timeout if timeout and timeout != USE_CONFIG_TIMEOUT else self.config.timeout,
+            )
+        except Exception as e:
+            logger.error(f"AnthropicLLM._achat_completion() failed: {type(e).__name__}: {e}")
+            raise
+        logger.info(f"AnthropicLLM._achat_completion() succeeded, usage: input={resp.usage.input_tokens}, output={resp.usage.output_tokens}")
         self._update_costs(resp.usage, self.model)
         return resp
 
@@ -58,7 +68,16 @@ class AnthropicLLM(BaseLLM):
         return await self._achat_completion(messages, timeout=self.get_timeout(timeout))
 
     async def _achat_completion_stream(self, messages: list[dict], timeout: int = USE_CONFIG_TIMEOUT) -> str:
-        stream = await self.aclient.messages.create(**self._const_kwargs(messages, stream=True))
+        from sdeteam.logs import logger
+        logger.info(f"AnthropicLLM._achat_completion_stream() called, model={self.model}, timeout={timeout}, msg_count={len(messages)}")
+        try:
+            stream = await self.aclient.messages.create(
+                **self._const_kwargs(messages, stream=True),
+                timeout=timeout if timeout and timeout != USE_CONFIG_TIMEOUT else self.config.timeout,
+            )
+        except Exception as e:
+            logger.error(f"AnthropicLLM._achat_completion_stream() failed: {type(e).__name__}: {e}")
+            raise
         collected_content = []
         collected_reasoning_content = []
         usage = Usage(input_tokens=0, output_tokens=0)

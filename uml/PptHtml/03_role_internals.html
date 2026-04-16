@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>3. Role Internals</title>
+<style>
+  body { margin: 0; padding: 40px; background: #fff; font-family: -apple-system, sans-serif; }
+  h1 { text-align: center; color: #333; font-size: 22px; margin-bottom: 30px; }
+  .mermaid { display: flex; justify-content: center; }
+</style>
+</head>
+<body>
+<h1>3. Role Internals — Observe → Think → Act</h1>
+<div class="mermaid">
+graph LR
+    ENV(("Environment"))
+
+    subgraph Role ["Role"]
+        direction LR
+        BUF["msg_buffer"]
+        OBS["_observe"]
+        MEM["memory"]
+        THK["_think"]
+        ACT["_act"]
+        PUB["publish"]
+    end
+
+    ENV -- "put_message" --> BUF
+    BUF --> OBS
+    OBS --> MEM
+    OBS --> THK
+    MEM --> THK
+    THK --> ACT
+    ACT --> MEM
+    ACT --> PUB
+    PUB -- "message" --> ENV
+
+    style ENV fill:#FFF3E0,stroke:#E65100,stroke-width:2px
+    style Role fill:#F3E5F5,stroke:#6A1B9A,stroke-width:2px,color:#4A148C
+    style BUF fill:#E3F2FD,stroke:#1565C0,stroke-width:2px
+    style OBS fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px
+    style MEM fill:#FFFDE7,stroke:#F9A825,stroke-width:2px
+    style THK fill:#FFFDE7,stroke:#F9A825,stroke-width:2px
+    style ACT fill:#FCE4EC,stroke:#C62828,stroke-width:2px
+    style PUB fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px
+</div>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: { fontSize: '16px', lineColor: '#555' }, securityLevel: 'loose' });
+</script>
+</body>
+</html>

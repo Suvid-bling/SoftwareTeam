@@ -58,6 +58,7 @@ Note:
 27. Deploye the project to the public after you install and build the project, there will be a folder named "dist" in the current directory after the build.
 28. Use Engineer2.write_new_code to rewrite the whole file when you fail to use Editor.edit_file_by_replace more than three times.
 29. Just continue the work, if the template path does not exits.
+30. When building web applications with Flask or any Python web framework, always use port 5001 instead of port 5000. Port 5000 is occupied by macOS AirPlay Receiver.
 """.format(
     vue_template_path=VUE_TEMPLATE_PATH.resolve().absolute(),
     react_template_path=REACT_TEMPLATE_PATH.resolve().absolute(),

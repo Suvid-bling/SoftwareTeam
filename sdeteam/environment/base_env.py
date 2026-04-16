@@ -202,12 +202,32 @@ class Environment(ExtEnv):
             futures = []
             for role in self.roles.values():
                 if role.is_idle:
+                    logger.debug(f"Role {role.name} is idle, skipping")
                     continue
+                logger.info(f"Scheduling role {role.name} to run")
                 future = role.run()
                 futures.append(future)
 
             if futures:
-                await asyncio.gather(*futures)
+                logger.info(f"Running {len(futures)} role(s) concurrently")
+                print(f">>> ENV: Running {len(futures)} role(s) concurrently", flush=True)
+                try:
+                    results = await asyncio.gather(*futures, return_exceptions=True)
+                    print(f">>> ENV: asyncio.gather completed, {len(results)} results", flush=True)
+                    has_error = False
+                    for i, result in enumerate(results):
+                        if isinstance(result, Exception):
+                            logger.error(f"Role execution failed with exception: {type(result).__name__}: {result}", exc_info=result)
+                            print(f">>> ENV: Role {i} FAILED: {type(result).__name__}: {result}", flush=True)
+                            has_error = True
+                    if has_error:
+                        logger.error("One or more roles failed during this round, but continuing...")
+                except Exception as e:
+                    logger.error(f"asyncio.gather failed unexpectedly: {e}", exc_info=True)
+                    print(f">>> ENV: asyncio.gather EXCEPTION: {e}", flush=True)
+                    raise
+            else:
+                logger.debug("No roles to run in this cycle")
             logger.debug(f"is idle: {self.is_idle}")
 
     def get_roles(self) -> dict[str, BaseRole]:

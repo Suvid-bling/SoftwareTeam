@@ -118,14 +118,21 @@ class Team(BaseModel):
         if idea:
             self.run_project(idea=idea, send_to=send_to)
 
+        total_rounds = n_round
         while n_round > 0:
             if self.env.is_idle:
                 logger.debug("All roles are idle.")
                 break
             n_round -= 1
+            logger.info(f"=== Team round {total_rounds - n_round}/{total_rounds} starting ===")
             self._check_balance()
-            await self.env.run()
+            try:
+                await self.env.run()
+            except Exception as e:
+                logger.error(f"env.run() raised exception at round {total_rounds - n_round}: {e}", exc_info=True)
+                raise
 
             logger.debug(f"max {n_round=} left.")
+        logger.info(f"Team run loop ended. Rounds remaining: {n_round}, is_idle: {self.env.is_idle}")
         self.env.archive(auto_archive)
         return self.env.history

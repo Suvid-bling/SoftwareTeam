@@ -146,9 +146,9 @@ class QaEngineer(Role):
         )
 
     async def _act(self) -> Message:
-        if self.input_args.project_path:
+        if self.input_args and self.input_args.project_path:
             await init_python_folder(self.repo.tests.workdir)
-        if self.test_round > self.test_round_allowed:
+        if self.input_args and self.test_round > self.test_round_allowed:
             kvs = self.input_args.model_dump()
             kvs["changed_test_filenames"] = [
                 str(self.repo.tests.workdir / i) for i in list(self.repo.tests.changed_files.keys())
@@ -180,10 +180,13 @@ class QaEngineer(Role):
             elif msg.cause_by == any_to_str(UserRequirement):
                 return await self._parse_user_requirement(msg)
         self.test_round += 1
-        kvs = self.input_args.model_dump()
-        kvs["changed_test_filenames"] = [
-            str(self.repo.tests.workdir / i) for i in list(self.repo.tests.changed_files.keys())
-        ]
+        if self.input_args:
+            kvs = self.input_args.model_dump()
+            kvs["changed_test_filenames"] = [
+                str(self.repo.tests.workdir / i) for i in list(self.repo.tests.changed_files.keys())
+            ]
+        else:
+            kvs = {}
         return AIMessage(
             content=f"Round {self.test_round} of tests done",
             instruct_content=AIMessage.create_instruct_value(kvs=kvs, class_name="WriteTestOutput"),

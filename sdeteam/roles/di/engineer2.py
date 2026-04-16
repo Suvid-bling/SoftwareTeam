@@ -55,7 +55,16 @@ class Engineer2(RoleZero):
     max_react_loop: int = 40
 
     async def _think(self) -> bool:
-        await self._format_instruction()
+        print(f">>> Engineer2._think() ENTERED for {self._setting}", flush=True)
+        logger.info(f"{self._setting}: Engineer2._think() calling _format_instruction()...")
+        try:
+            await self._format_instruction()
+            logger.info(f"{self._setting}: Engineer2._format_instruction() completed")
+            print(f">>> Engineer2._format_instruction() completed for {self._setting}", flush=True)
+        except Exception as e:
+            logger.error(f"{self._setting}: Engineer2._format_instruction() failed: {e}", exc_info=True)
+            print(f">>> Engineer2._format_instruction() FAILED: {e}", flush=True)
+            raise
         res = await super()._think()
         return res
 
@@ -64,7 +73,15 @@ class Engineer2(RoleZero):
         Display the current terminal and editor state.
         This information will be dynamically added to the command prompt.
         """
-        current_directory = (await self.terminal.run_command("pwd")).strip()
+        logger.debug(f"{self._setting}: _format_instruction() running 'pwd' via terminal...")
+        print(f">>> _format_instruction() about to run 'pwd' for {self._setting}", flush=True)
+        try:
+            current_directory = (await self.terminal.run_command("pwd")).strip()
+            print(f">>> _format_instruction() 'pwd' returned: {current_directory}", flush=True)
+        except Exception as e:
+            logger.error(f"{self._setting}: terminal.run_command('pwd') failed: {e}", exc_info=True)
+            print(f">>> _format_instruction() 'pwd' FAILED: {e}", flush=True)
+            raise
         self.editor._set_workdir(current_directory)
         state = {
             "editor_open_file": self.editor.current_file,

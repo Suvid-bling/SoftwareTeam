@@ -197,26 +197,43 @@ class RoleZero(Role):
 
     async def _think(self) -> bool:
         """Useful in 'react' mode. Use LLM to decide whether and what to do next."""
+        import sys
+        print(f">>> _think() ENTERED for {self._setting}", flush=True)
+        logger.info(f"{self._setting}: _think() started, use_fixed_sop={self.use_fixed_sop}, rc.todo={self.rc.todo}")
+        sys.stderr.flush()
         # Compatibility
         if self.use_fixed_sop:
             return await super()._think()
 
         ### 0. Preparation ###
         if not self.rc.todo:
+            print(f">>> _think() no rc.todo, returning False for {self._setting}", flush=True)
+            logger.info(f"{self._setting}: _think() returning False - no rc.todo")
             return False
 
         if not self.planner.plan.goal:
+            print(f">>> _think() detecting language for {self._setting}", flush=True)
+            logger.info(f"{self._setting}: _think() detecting language for plan goal")
             self.planner.plan.goal = self.get_memories()[-1].content
             detect_language_prompt = DETECT_LANGUAGE_PROMPT.format(requirement=self.planner.plan.goal)
+            logger.info(f"{self._setting}: _think() calling LLM for language detection...")
+            print(f">>> _think() calling LLM for language detection for {self._setting}...", flush=True)
             self.respond_language = await self.llm.aask(detect_language_prompt)
+            print(f">>> _think() language detected: {self.respond_language} for {self._setting}", flush=True)
+            logger.info(f"{self._setting}: _think() language detected: {self.respond_language}")
         ### 1. Experience ###
+        logger.debug(f"{self._setting}: _think() retrieving experience")
         example = self._retrieve_experience()
 
         ### 2. Plan Status ###
+        logger.debug(f"{self._setting}: _think() getting plan status")
         plan_status, current_task = get_plan_status(planner=self.planner)
+        logger.debug(f"{self._setting}: _think() plan_status length={len(plan_status) if plan_status else 0}, current_task={current_task}")
 
         ### 3. Tool/Command Info ###
+        logger.debug(f"{self._setting}: _think() recommending tools")
         tools = await self.tool_recommender.recommend_tools()
+        logger.debug(f"{self._setting}: _think() got {len(tools)} tools")
         tool_info = json.dumps({tool.name: tool.schemas for tool in tools})
 
         ### Role Instruction ###
@@ -238,10 +255,15 @@ class RoleZero(Role):
         )
 
         ### Recent Observation ###
+        logger.debug(f"{self._setting}: _think() parsing memory, memory_k={self.memory_k}")
         memory = self.rc.memory.get(self.memory_k)
+        logger.debug(f"{self._setting}: _think() got {len(memory)} memory items, parsing browser actions...")
         memory = await parse_browser_actions(memory, browser=self.browser)
+        logger.debug(f"{self._setting}: _think() parsing editor result...")
         memory = await parse_editor_result(memory)
+        logger.debug(f"{self._setting}: _think() parsing images...")
         memory = await parse_images(memory, llm=self.llm)
+        logger.debug(f"{self._setting}: _think() memory parsing complete, building request...")
 
         req = self.llm.format_msg(memory + [UserMessage(content=prompt)])
         state_data = dict(
@@ -251,7 +273,13 @@ class RoleZero(Role):
         )
         async with ThoughtReporter(enable_llm_stream=True) as reporter:
             await reporter.async_report({"type": "react"})
-            self.command_rsp = await self.llm_cached_aask(req=req, system_msgs=[system_prompt], state_data=state_data)
+            logger.info(f"{self._setting}: _think() calling LLM (llm_cached_aask)...")
+            try:
+                self.command_rsp = await self.llm_cached_aask(req=req, system_msgs=[system_prompt], state_data=state_data)
+                logger.info(f"{self._setting}: _think() LLM call completed, response length={len(self.command_rsp) if self.command_rsp else 0}")
+            except Exception as e:
+                logger.error(f"{self._setting}: _think() LLM call failed: {type(e).__name__}: {e}", exc_info=True)
+                raise
 
         rsp_hist = [mem.content for mem in self.rc.memory.get()]
         self.command_rsp = await check_duplicates(
@@ -278,6 +306,7 @@ class RoleZero(Role):
         return super()._get_prefix() + f" The current time is {time_info}."
 
     async def _act(self) -> Message:
+        logger.info(f"{self._setting}: _act() started, use_fixed_sop={self.use_fixed_sop}")
         if self.use_fixed_sop:
             return await super()._act()
 
@@ -287,10 +316,15 @@ class RoleZero(Role):
         self.rc.memory.add(AIMessage(content=self.command_rsp))
         if not ok:
             error_msg = commands
+            logger.warning(f"{self._setting}: _act() command parse failed: {error_msg[:200]}")
             self.rc.memory.add(UserMessage(content=error_msg, cause_by=RunCommand))
             return error_msg
         logger.info(f"Commands: \n{commands}")
-        outputs = await self._run_commands(commands)
+        try:
+            outputs = await self._run_commands(commands)
+        except Exception as e:
+            logger.error(f"{self._setting}: _run_commands() raised exception: {e}", exc_info=True)
+            raise
         logger.info(f"Commands outputs: \n{outputs}")
         self.rc.memory.add(UserMessage(content=outputs, cause_by=RunCommand))
 
@@ -302,27 +336,46 @@ class RoleZero(Role):
 
     async def _react(self) -> Message:
         # NOTE: Diff 1: Each time landing here means news is observed, set todo to allow news processing in _think
+        logger.info(f"{self._setting}: _react() started")
         self._set_state(0)
 
         # problems solvable by quick thinking doesn't need to a formal think-act cycle
-        quick_rsp, _ = await self._quick_think()
+        logger.debug(f"{self._setting}: entering _quick_think()")
+        quick_rsp, intent = await self._quick_think()
         if quick_rsp:
+            logger.info(f"{self._setting}: _quick_think() returned response, intent={intent}")
             return quick_rsp
+        logger.debug(f"{self._setting}: _quick_think() returned no quick response, intent={intent}")
 
         actions_taken = 0
         rsp = AIMessage(content="No actions taken yet", cause_by=Action)  # will be overwritten after Role _act
         while actions_taken < self.rc.max_react_loop:
+            logger.debug(f"{self._setting}: react loop iteration {actions_taken + 1}/{self.rc.max_react_loop}")
             # NOTE: Diff 2: Keep observing within _react, news will go into memory, allowing adapting to new info
             await self._observe()
 
             # think
-            has_todo = await self._think()
+            logger.debug(f"{self._setting}: entering _think()")
+            print(f">>> ABOUT TO CALL _think() for {self._setting}", flush=True)
+            try:
+                has_todo = await self._think()
+                print(f">>> _think() returned has_todo={has_todo} for {self._setting}", flush=True)
+            except Exception as e:
+                logger.error(f"{self._setting}: _think() raised exception: {e}", exc_info=True)
+                raise
+            logger.debug(f"{self._setting}: _think() returned has_todo={has_todo}")
             if not has_todo:
+                logger.info(f"{self._setting}: no todo after _think(), breaking react loop")
                 break
             # act
             logger.debug(f"{self._setting}: {self.rc.state=}, will do {self.rc.todo}")
-            rsp = await self._act()
+            try:
+                rsp = await self._act()
+            except Exception as e:
+                logger.error(f"{self._setting}: _act() raised exception: {e}", exc_info=True)
+                raise
             actions_taken += 1
+            logger.info(f"{self._setting}: _act() completed, actions_taken={actions_taken}")
 
             # post-check
             if self.rc.max_react_loop >= 10 and actions_taken >= self.rc.max_react_loop:
@@ -333,6 +386,7 @@ class RoleZero(Role):
                 )
                 if "yes" in human_rsp.lower():
                     actions_taken = 0
+        logger.info(f"{self._setting}: _react() finished, total actions_taken={actions_taken}")
         return rsp  # return output from the last action
 
     def format_quick_system_prompt(self) -> str:
@@ -383,8 +437,10 @@ class RoleZero(Role):
         return rsp_msg, intent_result
 
     async def _run_commands(self, commands) -> str:
+        logger.info(f"{self._setting}: _run_commands() started with {len(commands)} command(s)")
         outputs = []
-        for cmd in commands:
+        for i, cmd in enumerate(commands):
+            logger.debug(f"{self._setting}: executing command {i + 1}/{len(commands)}: {cmd['command_name']}")
             output = f"Command {cmd['command_name']} executed"
             # handle special command first
             if self._is_special_command(cmd):
@@ -472,6 +528,7 @@ class RoleZero(Role):
         return await self.rc.env.reply_to_human(content, sent_from=self)
 
     async def _end(self, **kwarg):
+        logger.info(f"{self._setting}: _end() called, setting state to -1")
         self._set_state(-1)
         memory = self.rc.memory.get(self.memory_k)
         # Ensure reply to the human before the "end" command is executed. Hard code k=5 for checking.

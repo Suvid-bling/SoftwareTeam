@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>1. System Overview</title>
+<style>
+  body { margin: 0; padding: 40px; background: #fff; font-family: -apple-system, sans-serif; }
+  h1 { text-align: center; color: #333; font-size: 22px; margin-bottom: 30px; }
+  .mermaid { display: flex; justify-content: center; }
+</style>
+</head>
+<body>
+<h1>1. System Overview — Layered Architecture</h1>
+<div class="mermaid">
+graph TB
+    U["User / CLI"]
+    T["Team"]
+    ENV["Environment"]
+    R["Roles"]
+    A["Actions"]
+    LLM["LLM Providers"]
+    D["Data / Memory"]
+
+    U ==> T
+    T ==> ENV
+    ENV ==> R
+    R ==> A
+    A ==> LLM
+    R -.-> D
+    ENV -.-> D
+
+    style U fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#1B5E20
+    style T fill:#E3F2FD,stroke:#1565C0,stroke-width:2px,color:#0D47A1
+    style ENV fill:#FFF3E0,stroke:#E65100,stroke-width:2px,color:#BF360C
+    style R fill:#F3E5F5,stroke:#6A1B9A,stroke-width:2px,color:#4A148C
+    style A fill:#FFFDE7,stroke:#F9A825,stroke-width:2px,color:#F57F17
+    style LLM fill:#FCE4EC,stroke:#C62828,stroke-width:2px,color:#B71C1C
+    style D fill:#E0F2F1,stroke:#00695C,stroke-width:2px,color:#004D40
+</div>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: { fontSize: '16px', lineColor: '#555' }, securityLevel: 'loose' });
+</script>
+</body>
+</html>
