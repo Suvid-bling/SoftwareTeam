@@ -4,6 +4,7 @@
 
 const API = "";
 let ws = null;
+let termWs = null;
 let isRunning = false;
 const selectedRoles = new Set();
 
@@ -23,6 +24,94 @@ const btnClosePreview = document.getElementById("btn-close-preview");
 const btnRefreshFiles = document.getElementById("btn-refresh-files");
 const investmentInput = document.getElementById("investment");
 
+// Tab refs
+const tabChat = document.getElementById("tab-chat");
+const tabTerminal = document.getElementById("tab-terminal");
+const panelChat = document.getElementById("panel-chat");
+const panelTerminal = document.getElementById("panel-terminal");
+const terminalOutput = document.getElementById("terminal-output");
+const terminalInput = document.getElementById("terminal-input");
+const btnSendCmd = document.getElementById("btn-send-cmd");
+
+// Context menu refs
+const contextMenu = document.getElementById("context-menu");
+const ctxRun = document.getElementById("ctx-run");
+const ctxStop = document.getElementById("ctx-stop");
+let contextMenuTarget = null; // file path for right-click
+const runningProjects = new Set();
+
+// ---------------------------------------------------------------------------
+// Tab switching
+// ---------------------------------------------------------------------------
+
+function switchTab(tab) {
+  const isChat = tab === "chat";
+  tabChat.classList.toggle("active", isChat);
+  tabChat.classList.toggle("border-blue-500", isChat);
+  tabChat.classList.toggle("text-blue-400", isChat);
+  tabChat.classList.toggle("border-transparent", !isChat);
+  tabChat.classList.toggle("text-gray-500", !isChat);
+
+  tabTerminal.classList.toggle("active", !isChat);
+  tabTerminal.classList.toggle("border-blue-500", !isChat);
+  tabTerminal.classList.toggle("text-blue-400", !isChat);
+  tabTerminal.classList.toggle("border-transparent", isChat);
+  tabTerminal.classList.toggle("text-gray-500", isChat);
+
+  panelChat.classList.toggle("hidden", !isChat);
+  panelTerminal.classList.toggle("hidden", isChat);
+
+  if (!isChat && !termWs) connectTerminal();
+}
+
+tabChat.addEventListener("click", () => switchTab("chat"));
+tabTerminal.addEventListener("click", () => switchTab("terminal"));
+
+// ---------------------------------------------------------------------------
+// Terminal WebSocket
+// ---------------------------------------------------------------------------
+
+function connectTerminal() {
+  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  termWs = new WebSocket(`${proto}//${location.host}/ws/terminal`);
+
+  termWs.onopen = () => {
+    terminalOutput.textContent = "";
+    appendTerminal("Connected to workspace shell.\n");
+  };
+
+  termWs.onmessage = (e) => {
+    appendTerminal(e.data);
+  };
+
+  termWs.onclose = () => {
+    appendTerminal("\n[disconnected]\n");
+    termWs = null;
+  };
+}
+
+function appendTerminal(text) {
+  terminalOutput.textContent += text;
+  terminalOutput.scrollTop = terminalOutput.scrollHeight;
+}
+
+function sendTerminalCommand() {
+  const cmd = terminalInput.value;
+  if (!cmd && !termWs) return;
+  if (termWs && termWs.readyState === WebSocket.OPEN) {
+    termWs.send(cmd + "\n");
+    terminalInput.value = "";
+  }
+}
+
+btnSendCmd.addEventListener("click", sendTerminalCommand);
+terminalInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    sendTerminalCommand();
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Roles
 // ---------------------------------------------------------------------------
@@ -31,7 +120,6 @@ async function loadRoles() {
   const res = await fetch(`${API}/api/roles`);
   const roles = await res.json();
   roleList.innerHTML = "";
-  // Default selection — the standard SDE team
   const defaults = ["ProductManager", "Architect", "ProjectManager", "Engineer", "QaEngineer"];
   roles.forEach((r) => {
     if (defaults.includes(r.name)) selectedRoles.add(r.name);
@@ -89,17 +177,14 @@ chatForm.addEventListener("submit", async (e) => {
     appendChat("Please select at least one role.", "error");
     return;
   }
-
   appendChat(idea, "user");
   ideaInput.value = "";
-
   const body = {
     idea,
     roles: [...selectedRoles],
     investment: parseFloat(investmentInput.value) || 10,
     n_round: 100,
   };
-
   try {
     const res = await fetch(`${API}/api/run`, {
       method: "POST",
@@ -107,10 +192,7 @@ chatForm.addEventListener("submit", async (e) => {
       body: JSON.stringify(body),
     });
     const data = await res.json();
-    if (data.error) {
-      appendChat(data.error, "error");
-      return;
-    }
+    if (data.error) { appendChat(data.error, "error"); return; }
     setRunning(true);
     connectWS();
   } catch (err) {
@@ -135,7 +217,6 @@ function connectWS() {
   if (ws) ws.close();
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   ws = new WebSocket(`${proto}//${location.host}/ws/logs`);
-
   ws.onmessage = (e) => {
     const line = e.data;
     if (line.startsWith("[error]")) {
@@ -150,36 +231,29 @@ function connectWS() {
       appendChat(line, "log");
     }
   };
-
-  ws.onclose = () => {
-    // Poll status to see if run ended while WS was disconnected
-    setTimeout(pollStatus, 2000);
-  };
+  ws.onclose = () => setTimeout(pollStatus, 2000);
 }
 
 async function pollStatus() {
   try {
     const res = await fetch(`${API}/api/status`);
     const data = await res.json();
-    if (!data.running && isRunning) {
-      setRunning(false);
-      refreshFiles();
-    }
+    if (!data.running && isRunning) { setRunning(false); refreshFiles(); }
   } catch (_) {}
 }
 
 // ---------------------------------------------------------------------------
-// File viewer
+// File viewer + right-click context menu
 // ---------------------------------------------------------------------------
+
+const RUNNABLE_EXTS = [".py", ".js", ".sh"];
 
 async function loadFiles(dirPath = "") {
   try {
     const res = await fetch(`${API}/api/files?path=${encodeURIComponent(dirPath)}`);
     const data = await res.json();
     return data.entries || [];
-  } catch (_) {
-    return [];
-  }
+  } catch (_) { return []; }
 }
 
 async function renderFileTree(container, dirPath = "", depth = 0) {
@@ -188,7 +262,6 @@ async function renderFileTree(container, dirPath = "", depth = 0) {
     container.innerHTML = '<p class="text-xs text-gray-600 italic">No files yet.</p>';
     return;
   }
-
   for (const entry of entries) {
     const row = document.createElement("div");
     row.style.paddingLeft = `${depth * 14}px`;
@@ -213,11 +286,100 @@ async function renderFileTree(container, dirPath = "", depth = 0) {
         }
       });
     } else {
+      const isRunnable = RUNNABLE_EXTS.some((ext) => entry.name.endsWith(ext));
       row.className = "flex items-center gap-1 cursor-pointer hover:text-blue-400 py-0.5 text-gray-400 select-none";
       row.innerHTML = `<span>📄</span><span class="truncate">${entry.name}</span>`;
       row.addEventListener("click", () => openFilePreview(entry.path));
+
+      // Right-click for runnable files
+      if (isRunnable) {
+        row.addEventListener("contextmenu", (e) => {
+          e.preventDefault();
+          showContextMenu(e.pageX, e.pageY, entry.path);
+        });
+      }
     }
     container.appendChild(row);
+  }
+}
+
+function showContextMenu(x, y, filePath) {
+  contextMenuTarget = filePath;
+  const isProjectRunning = runningProjects.has(filePath);
+  ctxRun.classList.toggle("hidden", isProjectRunning);
+  ctxStop.classList.toggle("hidden", !isProjectRunning);
+  contextMenu.style.left = `${x}px`;
+  contextMenu.style.top = `${y}px`;
+  contextMenu.classList.remove("hidden");
+}
+
+// Hide context menu on click anywhere
+document.addEventListener("click", () => {
+  contextMenu.classList.add("hidden");
+});
+
+// Run file from context menu
+ctxRun.addEventListener("click", async () => {
+  if (!contextMenuTarget) return;
+  const filePath = contextMenuTarget;
+  contextMenu.classList.add("hidden");
+
+  try {
+    const res = await fetch(`${API}/api/run-project`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: filePath }),
+    });
+    const data = await res.json();
+    if (data.error) {
+      appendChat(`[run] Error: ${data.error}`, "error");
+      return;
+    }
+    runningProjects.add(filePath);
+    appendChat(`[run] Started: ${filePath} (PID ${data.pid})`, "system");
+
+    // Switch to terminal and stream output
+    switchTab("terminal");
+    appendTerminal(`\n--- Running ${filePath} ---\n`);
+    pollProjectOutput(filePath);
+  } catch (err) {
+    appendChat(`[run] Failed: ${err.message}`, "error");
+  }
+});
+
+// Stop file from context menu
+ctxStop.addEventListener("click", async () => {
+  if (!contextMenuTarget) return;
+  const filePath = contextMenuTarget;
+  contextMenu.classList.add("hidden");
+
+  try {
+    await fetch(`${API}/api/stop-project`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: filePath }),
+    });
+    runningProjects.delete(filePath);
+    appendTerminal(`\n--- Stopped ${filePath} ---\n`);
+    appendChat(`[run] Stopped: ${filePath}`, "system");
+  } catch (err) {
+    appendChat(`[run] Stop failed: ${err.message}`, "error");
+  }
+});
+
+async function pollProjectOutput(filePath) {
+  while (runningProjects.has(filePath)) {
+    try {
+      const res = await fetch(`${API}/api/project-output?path=${encodeURIComponent(filePath)}`);
+      const data = await res.json();
+      if (data.output) appendTerminal(data.output);
+      if (!data.running) {
+        runningProjects.delete(filePath);
+        appendTerminal(`\n--- ${filePath} exited ---\n`);
+        break;
+      }
+    } catch (_) { break; }
+    await new Promise((r) => setTimeout(r, 500));
   }
 }
 
@@ -232,9 +394,7 @@ async function openFilePreview(filePath) {
   } catch (_) {}
 }
 
-btnClosePreview.addEventListener("click", () => {
-  filePreview.classList.add("hidden");
-});
+btnClosePreview.addEventListener("click", () => filePreview.classList.add("hidden"));
 
 async function refreshFiles() {
   fileTree.innerHTML = "";
@@ -249,8 +409,4 @@ btnRefreshFiles.addEventListener("click", refreshFiles);
 
 loadRoles();
 refreshFiles();
-
-// Auto-refresh files every 15s while running
-setInterval(() => {
-  if (isRunning) refreshFiles();
-}, 15000);
+setInterval(() => { if (isRunning) refreshFiles(); }, 15000);

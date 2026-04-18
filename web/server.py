@@ -6,6 +6,8 @@ Provides REST + WebSocket interface to the Team engine.
 import asyncio
 import json
 import os
+import subprocess
+import signal
 import traceback
 from pathlib import Path
 from typing import Optional
@@ -188,6 +190,120 @@ async def ws_logs(ws: WebSocket):
             await asyncio.sleep(0.5)
     except WebSocketDisconnect:
         pass
+
+
+# ---------------------------------------------------------------------------
+# Terminal — interactive shell via WebSocket
+# ---------------------------------------------------------------------------
+
+@app.websocket("/ws/terminal")
+async def ws_terminal(ws: WebSocket):
+    await ws.accept()
+    proc = await asyncio.create_subprocess_exec(
+        "/bin/bash", "-i",
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+        cwd=str(WORKSPACE_ROOT),
+        env={**os.environ, "TERM": "dumb", "PS1": "$ "},
+    )
+
+    async def _read_stdout():
+        try:
+            while True:
+                chunk = await proc.stdout.read(4096)
+                if not chunk:
+                    break
+                await ws.send_text(chunk.decode(errors="replace"))
+        except (WebSocketDisconnect, ConnectionError):
+            pass
+
+    reader_task = asyncio.create_task(_read_stdout())
+
+    try:
+        while True:
+            data = await ws.receive_text()
+            if proc.stdin:
+                proc.stdin.write(data.encode())
+                await proc.stdin.drain()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        proc.kill()
+        reader_task.cancel()
+
+
+# ---------------------------------------------------------------------------
+# Run project — execute a file inside workspace
+# ---------------------------------------------------------------------------
+
+# Track running project processes
+project_processes: dict[str, asyncio.subprocess.Process] = {}
+
+
+class RunProjectRequest(BaseModel):
+    path: str  # relative to workspace root, e.g. "todo_app/app.py"
+
+
+@app.post("/api/run-project")
+async def run_project(req: RunProjectRequest):
+    """Run a Python file from the workspace."""
+    target = (WORKSPACE_ROOT / req.path).resolve()
+    if not target.is_file():
+        return JSONResponse({"error": "File not found"}, status_code=404)
+
+    # Determine how to run based on extension
+    ext = target.suffix.lower()
+    if ext == ".py":
+        cmd = ["python3", str(target)]
+    elif ext == ".js":
+        cmd = ["node", str(target)]
+    elif ext == ".sh":
+        cmd = ["bash", str(target)]
+    else:
+        return JSONResponse({"error": f"Unsupported file type: {ext}"}, status_code=400)
+
+    # Kill previous process for same path if still running
+    if req.path in project_processes:
+        old = project_processes[req.path]
+        if old.returncode is None:
+            old.kill()
+
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+        cwd=str(target.parent),
+    )
+    project_processes[req.path] = proc
+    return {"status": "started", "pid": proc.pid, "path": req.path}
+
+
+@app.get("/api/project-output")
+async def project_output(path: str):
+    """Read output from a running project process."""
+    proc = project_processes.get(path)
+    if not proc:
+        return {"output": "", "running": False}
+    running = proc.returncode is None
+    output = ""
+    if proc.stdout:
+        try:
+            chunk = await asyncio.wait_for(proc.stdout.read(8192), timeout=0.5)
+            output = chunk.decode(errors="replace")
+        except asyncio.TimeoutError:
+            pass
+    return {"output": output, "running": running}
+
+
+@app.post("/api/stop-project")
+async def stop_project(req: RunProjectRequest):
+    """Stop a running project process."""
+    proc = project_processes.get(req.path)
+    if proc and proc.returncode is None:
+        proc.kill()
+        return {"status": "killed"}
+    return {"status": "not_running"}
 
 
 # Serve static files last (catch-all)

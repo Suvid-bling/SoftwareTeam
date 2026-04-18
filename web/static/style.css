@@ -35,3 +35,14 @@
 .animate-pulse {
   animation: pulse 1.5s ease-in-out infinite;
 }
+
+/* Terminal panel */
+#terminal-output {
+  background: #0a0a0a;
+  min-height: 200px;
+}
+
+/* Context menu shadow */
+#context-menu {
+  backdrop-filter: blur(8px);
+}

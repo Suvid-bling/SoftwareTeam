@@ -33,25 +33,48 @@
       </div>
     </aside>
 
-    <!-- CENTER: Chat board -->
+    <!-- CENTER: Chat + Terminal with tabs -->
     <main class="flex-1 flex flex-col min-w-0">
-      <div id="chat-log" class="flex-1 overflow-y-auto p-4 space-y-2 font-mono text-sm leading-relaxed"></div>
+      <!-- Tab bar -->
+      <div class="flex border-b border-gray-800 bg-gray-900 shrink-0">
+        <button id="tab-chat" class="tab-btn active px-4 py-2 text-sm font-medium border-b-2 border-blue-500 text-blue-400">
+          💬 Chat
+        </button>
+        <button id="tab-terminal" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-300">
+          🖥 Terminal
+        </button>
+      </div>
 
-      <!-- Input area -->
-      <form id="chat-form" class="shrink-0 border-t border-gray-800 bg-gray-900 p-3 flex gap-2">
-        <textarea id="idea-input" rows="3" placeholder="Describe what you want to build…"
-                  class="flex-1 rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"></textarea>
-        <div class="flex flex-col gap-2">
-          <button type="submit" id="btn-run"
-                  class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-medium transition">
-            Run ▶
-          </button>
-          <button type="button" id="btn-stop"
-                  class="px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 text-sm font-medium transition hidden">
-            Stop ■
+      <!-- Chat panel -->
+      <div id="panel-chat" class="flex-1 flex flex-col min-h-0">
+        <div id="chat-log" class="flex-1 overflow-y-auto p-4 space-y-2 font-mono text-sm leading-relaxed"></div>
+        <form id="chat-form" class="shrink-0 border-t border-gray-800 bg-gray-900 p-3 flex gap-2">
+          <textarea id="idea-input" rows="3" placeholder="Describe what you want to build…"
+                    class="flex-1 rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"></textarea>
+          <div class="flex flex-col gap-2">
+            <button type="submit" id="btn-run"
+                    class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-medium transition">
+              Run ▶
+            </button>
+            <button type="button" id="btn-stop"
+                    class="px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 text-sm font-medium transition hidden">
+              Stop ■
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Terminal panel -->
+      <div id="panel-terminal" class="flex-1 flex flex-col min-h-0 hidden">
+        <div id="terminal-output" class="flex-1 overflow-y-auto p-4 font-mono text-sm text-green-300 bg-black leading-relaxed whitespace-pre-wrap"></div>
+        <div class="shrink-0 border-t border-gray-800 bg-gray-900 p-3 flex gap-2">
+          <input id="terminal-input" type="text" placeholder="Type command…"
+                 class="flex-1 rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-green-500" />
+          <button id="btn-send-cmd" class="px-4 py-2 rounded-lg bg-green-700 hover:bg-green-600 text-sm font-medium transition">
+            Send
           </button>
         </div>
-      </form>
+      </div>
     </main>
 
     <!-- RIGHT: File viewer -->
@@ -70,6 +93,16 @@
         <pre id="preview-content" class="px-3 py-2 text-xs whitespace-pre-wrap break-words font-mono text-gray-300"></pre>
       </div>
     </aside>
+  </div>
+
+  <!-- Right-click context menu -->
+  <div id="context-menu" class="hidden fixed z-50 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[160px]">
+    <button id="ctx-run" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-700 flex items-center gap-2">
+      <span class="text-green-400 text-base">▶</span> Run File
+    </button>
+    <button id="ctx-stop" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-700 flex items-center gap-2 hidden">
+      <span class="text-red-400 text-base">■</span> Stop Process
+    </button>
   </div>
 
   <script src="/static/app.js"></script>
