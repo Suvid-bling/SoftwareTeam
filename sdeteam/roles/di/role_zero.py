@@ -335,6 +335,10 @@ class RoleZero(Role):
         )
 
     async def _react(self) -> Message:
+        # If using fixed SOP, delegate to the base Role._react which respects BY_ORDER mode
+        if self.use_fixed_sop:
+            return await super()._react()
+
         # NOTE: Diff 1: Each time landing here means news is observed, set todo to allow news processing in _think
         logger.info(f"{self._setting}: _react() started")
         self._set_state(0)

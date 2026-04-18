@@ -2,34 +2,29 @@ import asyncio
 import traceback
 
 from sdeteam.logs import logger
-from sdeteam.roles.di.team_leader import TeamLeader
-from sdeteam.roles.di.engineer2 import Engineer2
-from sdeteam.roles.architect import Architect
-from sdeteam.roles.qa_engineer import QaEngineer
-
+from sdeteam.roles import ProductManager, Architect, ProjectManager, Engineer, QaEngineer
 from sdeteam.team import Team
 
 
 async def main():
     logger.info("=== SdeTeam starting ===")
-    team = Team()
-    team.env.is_public_chat = False  # prevent broadcast, use direct routing only
+    team = Team(use_mgx=False)
     team.hire([
-        TeamLeader(),
-        Engineer2(),       # coding
-        #Architect(),       # design & review
-        QaEngineer(),      # testing
+        ProductManager(use_fixed_sop=True),   # Alice: writes PRD
+        Architect(use_fixed_sop=True),         # Bob: system design
+        ProjectManager(use_fixed_sop=True),    # Eve: task breakdown
+        Engineer(),                             # Alex: writes code
+        QaEngineer(),                           # Edward: writes & runs tests
     ])
     team.invest(10.0)
     try:
         await team.run(
-            n_round=100000,
+            n_round=50,
             idea="""
-        Review the existing accounting system in accounting_system/.
-        - Architect: review the code architecture, identify design issues and suggest improvements
-        - Engineer: fix any bugs or issues found during review
-        - QA: write and run tests for all API endpoints, fix any failing tests
-        All files are in workspace/accounting_system/
+        Build a minimal Python Flask REST API todo app. Keep it to as few files as possible (ideally 3-4 files max).
+        Single file app.py with: User and Todo models (SQLAlchemy + SQLite), JWT auth (register/login), CRUD for todos scoped per user.
+        Plus requirements.txt. Use port 5001. Save to workspace/todo_app/.
+        Do NOT create separate folders for models, routes, utils, or config. Keep everything in one app.py file.
         """,
         )
     except Exception as e:

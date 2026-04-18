@@ -6,7 +6,7 @@ from sdeteam.actions.prepare_documents import PrepareDocuments
 from sdeteam.actions.search_enhanced_qa import SearchEnhancedQA
 from sdeteam.prompts.product_manager import PRODUCT_MANAGER_INSTRUCTION
 from sdeteam.roles.di.role_zero import RoleZero
-from sdeteam.roles.role import RoleReactMode
+from sdeteam.roles.role import Role, RoleReactMode
 from sdeteam.tools.libs.browser import Browser
 from sdeteam.tools.libs.editor import Editor
 from sdeteam.utils.common import any_to_name, any_to_str, tool2name
@@ -50,10 +50,5 @@ class ProductManager(RoleZero):
         if not self.use_fixed_sop:
             return await super()._think()
 
-        if GitRepository.is_git_dir(self.config.project_path) and not self.config.git_reinit:
-            self._set_state(1)
-        else:
-            self._set_state(0)
-            self.config.git_reinit = False
-            self.todo_action = any_to_name(WritePRD)
-        return bool(self.rc.todo)
+        # In fixed SOP BY_ORDER mode, delegate to base Role._think for proper state progression
+        return await Role._think(self)

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SdeTeam</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body class="bg-gray-950 text-gray-100 h-screen flex flex-col overflow-hidden">
+
+  <!-- Top bar -->
+  <header class="flex items-center justify-between px-5 py-3 bg-gray-900 border-b border-gray-800 shrink-0">
+    <h1 class="text-lg font-semibold tracking-tight">🛠 SdeTeam</h1>
+    <span id="status-badge" class="text-xs px-2 py-0.5 rounded-full bg-gray-700">Idle</span>
+  </header>
+
+  <!-- Main 3-column layout -->
+  <div class="flex flex-1 overflow-hidden">
+
+    <!-- LEFT: Hire panel -->
+    <aside id="hire-panel" class="w-64 shrink-0 border-r border-gray-800 bg-gray-900 flex flex-col">
+      <div class="px-4 py-3 border-b border-gray-800">
+        <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-400">Hire Roles</h2>
+      </div>
+      <div id="role-list" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
+      <div class="p-3 border-t border-gray-800 space-y-2">
+        <label class="block text-xs text-gray-400">
+          Budget ($)
+          <input id="investment" type="number" value="10" min="1" step="1"
+                 class="mt-1 w-full rounded bg-gray-800 border border-gray-700 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+        </label>
+      </div>
+    </aside>
+
+    <!-- CENTER: Chat board -->
+    <main class="flex-1 flex flex-col min-w-0">
+      <div id="chat-log" class="flex-1 overflow-y-auto p-4 space-y-2 font-mono text-sm leading-relaxed"></div>
+
+      <!-- Input area -->
+      <form id="chat-form" class="shrink-0 border-t border-gray-800 bg-gray-900 p-3 flex gap-2">
+        <textarea id="idea-input" rows="3" placeholder="Describe what you want to build…"
+                  class="flex-1 rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"></textarea>
+        <div class="flex flex-col gap-2">
+          <button type="submit" id="btn-run"
+                  class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-medium transition">
+            Run ▶
+          </button>
+          <button type="button" id="btn-stop"
+                  class="px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 text-sm font-medium transition hidden">
+            Stop ■
+          </button>
+        </div>
+      </form>
+    </main>
+
+    <!-- RIGHT: File viewer -->
+    <aside id="file-panel" class="w-72 shrink-0 border-l border-gray-800 bg-gray-900 flex flex-col">
+      <div class="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
+        <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-400">Workspace Files</h2>
+        <button id="btn-refresh-files" class="text-xs text-blue-400 hover:text-blue-300">↻ Refresh</button>
+      </div>
+      <div id="file-tree" class="flex-1 overflow-y-auto p-3 text-sm space-y-1"></div>
+      <!-- File content preview -->
+      <div id="file-preview" class="hidden border-t border-gray-800 max-h-[40%] overflow-y-auto">
+        <div class="flex items-center justify-between px-3 py-2 bg-gray-800">
+          <span id="preview-filename" class="text-xs text-gray-400 truncate"></span>
+          <button id="btn-close-preview" class="text-xs text-gray-500 hover:text-gray-300">✕</button>
+        </div>
+        <pre id="preview-content" class="px-3 py-2 text-xs whitespace-pre-wrap break-words font-mono text-gray-300"></pre>
+      </div>
+    </aside>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

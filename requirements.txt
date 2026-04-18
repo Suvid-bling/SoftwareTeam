@@ -1,10 +1,10 @@
-aiohttp==3.8.6
+aiohttp>=3.9.0
 #azure_storage==0.37.0
 channels==4.0.0
 # Django==4.1.5
 # docx==0.2.4
 #faiss==1.5.3
-faiss_cpu==1.7.4
+faiss_cpu>=1.8.0
 fire==0.4.0
 typer==0.9.0
 # godot==0.1.1
@@ -33,7 +33,7 @@ tqdm==4.66.2
 # webdriver_manager<3.9
 anthropic==0.47.2
 typing-inspect==0.8.0
-libcst==1.0.1
+libcst>=1.1.0
 qdrant-client==1.7.0
 grpcio~=1.67.0
 grpcio-tools~=1.62.3
@@ -88,3 +88,7 @@ spark_ai_python~=0.3.30
 tree_sitter~=0.23.2
 tree_sitter_python~=0.23.2
 httpx==0.28.1
+
+# Web UI
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
