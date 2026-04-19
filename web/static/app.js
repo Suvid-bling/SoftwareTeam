@@ -6,7 +6,15 @@ const API = "";
 let ws = null;
 let termWs = null;
 let isRunning = false;
+let currentMode = "pipeline"; // "pipeline" or "teamleader"
 const selectedRoles = new Set();
+
+// Tooltip ref
+const logTooltip = document.getElementById("log-tooltip");
+
+// Mode switch refs
+const modePipeline = document.getElementById("mode-pipeline");
+const modeTeamleader = document.getElementById("mode-teamleader");
 
 // DOM refs
 const roleList = document.getElementById("role-list");
@@ -103,6 +111,36 @@ btnSendCmd.addEventListener("click", sendTerminalCommand);
 terminalInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendTerminalCommand(); } });
 
 // ---------------------------------------------------------------------------
+// Mode switching
+// ---------------------------------------------------------------------------
+
+const PIPELINE_DEFAULTS = ["ProductManager", "Architect", "ProjectManager", "Engineer", "QaEngineer"];
+const TEAMLEADER_DEFAULTS = ["TeamLeader", "Engineer2", "QaEngineer"];
+
+function switchMode(mode) {
+  currentMode = mode;
+  const isPipeline = mode === "pipeline";
+  modePipeline.className = isPipeline
+    ? "flex-1 px-2 py-1.5 text-xs font-medium bg-blue-600 text-white transition"
+    : "flex-1 px-2 py-1.5 text-xs font-medium bg-gray-800 text-gray-400 hover:text-gray-200 transition";
+  modeTeamleader.className = !isPipeline
+    ? "flex-1 px-2 py-1.5 text-xs font-medium bg-purple-600 text-white transition"
+    : "flex-1 px-2 py-1.5 text-xs font-medium bg-gray-800 text-gray-400 hover:text-gray-200 transition";
+
+  // Update role checkboxes
+  const defaults = isPipeline ? PIPELINE_DEFAULTS : TEAMLEADER_DEFAULTS;
+  selectedRoles.clear();
+  document.querySelectorAll("#role-list input[type=checkbox]").forEach((cb) => {
+    const checked = defaults.includes(cb.value);
+    cb.checked = checked;
+    if (checked) selectedRoles.add(cb.value);
+  });
+}
+
+modePipeline.addEventListener("click", () => { console.log("switch to pipeline"); switchMode("pipeline"); });
+modeTeamleader.addEventListener("click", () => { console.log("switch to teamleader"); switchMode("teamleader"); });
+
+// ---------------------------------------------------------------------------
 // Roles
 // ---------------------------------------------------------------------------
 
@@ -110,7 +148,8 @@ async function loadRoles() {
   const res = await fetch(`${API}/api/roles`);
   const roles = await res.json();
   roleList.innerHTML = "";
-  const defaults = ["ProductManager", "Architect", "ProjectManager", "Engineer", "QaEngineer"];
+  const defaults = currentMode === "pipeline" ? PIPELINE_DEFAULTS : TEAMLEADER_DEFAULTS;
+  selectedRoles.clear();
   roles.forEach((r) => {
     if (defaults.includes(r.name)) selectedRoles.add(r.name);
     const el = document.createElement("label");
@@ -161,7 +200,7 @@ chatForm.addEventListener("submit", async (e) => {
   if (selectedRoles.size === 0) { appendChat("Please select at least one role.", "error"); return; }
   appendChat(idea, "user");
   ideaInput.value = "";
-  const body = { idea, roles: [...selectedRoles], investment: parseFloat(investmentInput.value) || 10, n_round: 100 };
+  const body = { idea, roles: [...selectedRoles], mode: currentMode, investment: parseFloat(investmentInput.value) || 10, n_round: currentMode === "teamleader" ? 100000 : 100 };
   try {
     const res = await fetch(`${API}/api/run`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const data = await res.json();
@@ -312,10 +351,32 @@ async function renderAgentLogs() {
           const isStart = entry.text.includes("▶");
           const isDone = entry.text.includes("✓");
           const isErr = entry.text.includes("✗");
+          const isThink = entry.text.includes("🧠");
+          const isDecide = entry.text.includes("💡");
+          const isExec = entry.text.includes("⚙️");
+          const isOutput = entry.text.includes("📝");
           if (isStart) line.className = "text-blue-300";
           else if (isDone) line.className = "text-green-300";
           else if (isErr) line.className = "text-red-400";
-          line.textContent = `[${entry.ts}] ${entry.text}`;
+          else if (isThink) line.className = "text-purple-300";
+          else if (isDecide) line.className = "text-yellow-300";
+          else if (isExec) line.className = "text-cyan-300";
+          else if (isOutput) line.className = "text-gray-300";
+
+          // Truncate display text and add click for full content
+          const displayText = `[${entry.ts}] ${entry.text}`;
+          const hasFull = !!entry.full;
+
+          if (hasFull) {
+            const short = displayText.length > 120 ? displayText.slice(0, 120) + "…" : displayText;
+            line.textContent = short;
+            line.classList.add("cursor-pointer", "hover:underline");
+            line.dataset.fullText = entry.full;
+            line.addEventListener("click", toggleTooltip);
+          } else {
+            line.textContent = displayText;
+          }
+
           logArea.appendChild(line);
         });
       }
@@ -335,12 +396,53 @@ function startAgentPolling() {
   if (agentPollTimer) clearInterval(agentPollTimer);
   agentPollTimer = setInterval(async () => {
     if (!isRunning) { clearInterval(agentPollTimer); agentPollTimer = null; return; }
-    // Only refresh if agent tab is visible
     if (!panelAgents.classList.contains("hidden")) {
       await refreshAgentPanel();
     }
   }, 2000);
 }
+
+// ---------------------------------------------------------------------------
+// Tooltip for truncated log entries
+// ---------------------------------------------------------------------------
+
+function toggleTooltip(e) {
+  e.stopPropagation();
+  const fullText = e.currentTarget.dataset.fullText;
+  if (!fullText) return;
+
+  // If tooltip is already showing for this element, hide it
+  if (!logTooltip.classList.contains("hidden") && logTooltip._source === e.currentTarget) {
+    hideTooltip();
+    return;
+  }
+
+  logTooltip.textContent = fullText;
+  logTooltip._source = e.currentTarget;
+  logTooltip.classList.remove("hidden");
+  logTooltip.style.pointerEvents = "auto";
+
+  // Position near the clicked element
+  const rect = e.currentTarget.getBoundingClientRect();
+  let x = rect.left;
+  let y = rect.bottom + 6;
+  if (x + 500 > window.innerWidth) x = window.innerWidth - 510;
+  if (y + 300 > window.innerHeight) y = rect.top - 306;
+  if (x < 0) x = 10;
+  if (y < 0) y = 10;
+  logTooltip.style.left = `${x}px`;
+  logTooltip.style.top = `${y}px`;
+}
+
+function hideTooltip() {
+  logTooltip.classList.add("hidden");
+  logTooltip._source = null;
+}
+
+// Click anywhere else to dismiss
+document.addEventListener("click", (e) => {
+  if (!logTooltip.contains(e.target)) hideTooltip();
+});
 
 // ---------------------------------------------------------------------------
 // File viewer + right-click context menu

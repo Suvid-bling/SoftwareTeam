@@ -86,6 +86,7 @@ async def get_logs(after: int = 0):
 class RunRequest(BaseModel):
     idea: str
     roles: list[str]
+    mode: str = "pipeline"  # "pipeline" or "teamleader"
     investment: float = 10.0
     n_round: int = 100
 
@@ -112,7 +113,11 @@ async def run_team(req: RunRequest):
     if not hired:
         return JSONResponse({"error": "No valid roles selected."}, status_code=400)
 
-    team_instance = Team(use_mgx=False)
+    # Create team based on mode
+    is_teamleader = req.mode == "teamleader"
+    team_instance = Team(use_mgx=is_teamleader)
+    if is_teamleader:
+        object.__setattr__(team_instance.env, "is_public_chat", False)
     team_instance.hire(hired)
     team_instance.invest(req.investment)
 
@@ -126,21 +131,24 @@ async def run_team(req: RunRequest):
     env = team_instance.env
     original_publish = env.publish_message
 
-    def patched_publish(message, peekable=True):
+    def patched_publish(message, *args, **kwargs):
         ts = datetime.now().strftime("%H:%M:%S")
-        sender = getattr(message, "role", "") or "system"
-        content = getattr(message, "content", str(message))
-        # Truncate for display
+        # Use sent_from for better role attribution
+        sent_from = getattr(message, "sent_from", None)
+        if sent_from and hasattr(sent_from, "name"):
+            sent_from = sent_from.name
+        sent_from = str(sent_from) if sent_from else (getattr(message, "role", "") or "system")
+        content = getattr(message, "content", str(message)) or ""
         preview = content[:300] if content else ""
-        log_entry = {"ts": ts, "text": f"[{sender}] {preview}"}
+        log_entry = {"ts": ts, "text": f"[{sent_from}] {preview}"}
+        if len(content) > 300:
+            log_entry["full"] = content
 
-        # Add to sender's log
-        if sender in role_logs:
-            role_logs[sender].append(log_entry)
-        # Also add to global run_logs
-        run_logs.append(f"[{sender}] {preview}")
+        if sent_from in role_logs:
+            role_logs[sent_from].append(log_entry)
+        run_logs.append(f"[{sent_from}] {preview}")
 
-        return original_publish(message, peekable)
+        return original_publish(message, *args, **kwargs)
 
     object.__setattr__(env, "publish_message", patched_publish)
 
@@ -148,9 +156,12 @@ async def run_team(req: RunRequest):
     for role in hired:
         rname = role.__class__.__name__
 
-        def _add_role_log(name, text):
+        def _add_role_log(name, text, full=None):
             ts = datetime.now().strftime("%H:%M:%S")
-            role_logs.setdefault(name, []).append({"ts": ts, "text": text})
+            entry = {"ts": ts, "text": text}
+            if full and len(full) > len(text):
+                entry["full"] = full
+            role_logs.setdefault(name, []).append(entry)
 
         # Wrap _think
         original_think = role._think
@@ -185,7 +196,7 @@ async def run_team(req: RunRequest):
                     # Capture output summary
                     content = getattr(msg, "content", str(msg)) or ""
                     preview = content[:500].replace("\n", " ↵ ")
-                    _add_role_log(name, f"📝 Output: {preview}")
+                    _add_role_log(name, f"📝 Output: {preview}", full=content)
                     return msg
                 except Exception as e:
                     _add_role_log(name, f"✗ Action {action_name} failed: {e}")

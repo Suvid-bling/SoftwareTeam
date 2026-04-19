@@ -20,8 +20,17 @@
 
     <!-- LEFT: Hire panel -->
     <aside id="hire-panel" class="w-64 shrink-0 border-r border-gray-800 bg-gray-900 flex flex-col">
-      <div class="px-4 py-3 border-b border-gray-800">
+      <div class="px-4 py-3 border-b border-gray-800 space-y-2">
         <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-400">Hire Roles</h2>
+        <!-- Mode switch -->
+        <div class="flex rounded-lg overflow-hidden border border-gray-700">
+          <button id="mode-pipeline" class="flex-1 px-2 py-1.5 text-xs font-medium bg-blue-600 text-white transition">
+            ⛓ Pipeline
+          </button>
+          <button id="mode-teamleader" class="flex-1 px-2 py-1.5 text-xs font-medium bg-gray-800 text-gray-400 hover:text-gray-200 transition">
+            👑 TeamLeader
+          </button>
+        </div>
       </div>
       <div id="role-list" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
       <div class="p-3 border-t border-gray-800 space-y-2">
@@ -124,6 +133,11 @@
       <span class="text-red-400 text-base">■</span> Stop Process
     </button>
   </div>
+
+  <!-- Hover tooltip for full content -->
+  <div id="log-tooltip" class="hidden fixed z-[100] max-w-[500px] max-h-[400px] overflow-y-auto
+       bg-yellow-50 text-gray-900 text-xs font-mono p-3 rounded-lg shadow-2xl border border-yellow-300
+       whitespace-pre-wrap break-words"></div>
 
   <script src="/static/app.js"></script>
 </body>
