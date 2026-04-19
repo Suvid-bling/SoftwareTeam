@@ -43,6 +43,9 @@
         <button id="tab-terminal" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-300">
           🖥 Terminal
         </button>
+        <button id="tab-agents" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-300">
+          🤖 Agent Process
+        </button>
       </div>
 
       <!-- Chat panel -->
@@ -73,6 +76,23 @@
           <button id="btn-send-cmd" class="px-4 py-2 rounded-lg bg-green-700 hover:bg-green-600 text-sm font-medium transition">
             Send
           </button>
+        </div>
+      </div>
+
+      <!-- Agent Process panel -->
+      <div id="panel-agents" class="flex-1 flex flex-col min-h-0 hidden">
+        <!-- Horizontal slider of role cards -->
+        <div id="agent-slider-wrap" class="shrink-0 border-b border-gray-800 bg-gray-900 relative">
+          <div id="agent-slider" class="flex overflow-x-auto gap-2 p-3 scroll-smooth agent-slider"></div>
+          <div class="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+            <button id="slider-left" class="w-6 h-6 rounded bg-gray-700 hover:bg-gray-600 text-xs flex items-center justify-center">‹</button>
+            <button id="slider-right" class="w-6 h-6 rounded bg-gray-700 hover:bg-gray-600 text-xs flex items-center justify-center">›</button>
+          </div>
+        </div>
+        <!-- Role log display area: up to 5 visible at once -->
+        <div id="agent-logs-grid" class="flex-1 overflow-y-auto p-3 grid gap-3" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); max-height: 100%;"></div>
+        <div id="agent-empty" class="flex-1 flex items-center justify-center text-gray-600 text-sm italic hidden">
+          No active roles. Start a team run first.
         </div>
       </div>
     </main>

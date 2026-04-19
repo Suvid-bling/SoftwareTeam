@@ -46,3 +46,22 @@
 #context-menu {
   backdrop-filter: blur(8px);
 }
+
+/* Agent slider */
+.agent-slider {
+  scrollbar-width: thin;
+  scrollbar-color: #374151 transparent;
+}
+.agent-slider::-webkit-scrollbar {
+  height: 4px;
+}
+.agent-slider::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 2px;
+}
+
+/* Agent log cards */
+#agent-logs-grid > div {
+  min-height: 180px;
+  max-height: calc(100vh - 220px);
+}

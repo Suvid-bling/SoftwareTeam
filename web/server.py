@@ -9,6 +9,7 @@ import os
 import subprocess
 import signal
 import traceback
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -33,6 +34,10 @@ app = FastAPI(title="SdeTeam Web UI")
 team_instance: Optional[Team] = None
 team_task: Optional[asyncio.Task] = None
 run_logs: list[str] = []
+
+# Per-role logs: { "ProductManager": [{"ts": ..., "text": ...}, ...] }
+role_logs: dict[str, list[dict]] = {}
+active_roles: list[str] = []  # roles hired for current run
 
 # Available roles registry
 ROLE_REGISTRY = {
@@ -88,12 +93,14 @@ class RunRequest(BaseModel):
 @app.post("/api/run")
 async def run_team(req: RunRequest):
     """Start a team run with the given idea and hired roles."""
-    global team_instance, team_task, run_logs
+    global team_instance, team_task, run_logs, role_logs, active_roles
 
     if team_task and not team_task.done():
         return JSONResponse({"error": "A run is already in progress."}, status_code=409)
 
     run_logs.clear()
+    role_logs.clear()
+    active_roles.clear()
 
     # Build role instances
     hired = []
@@ -108,6 +115,56 @@ async def run_team(req: RunRequest):
     team_instance = Team(use_mgx=False)
     team_instance.hire(hired)
     team_instance.invest(req.investment)
+
+    # Initialize per-role logs and active list
+    for role in hired:
+        rname = role.__class__.__name__
+        active_roles.append(rname)
+        role_logs[rname] = []
+
+    # Monkey-patch publish_message to capture per-role logs
+    env = team_instance.env
+    original_publish = env.publish_message
+
+    def patched_publish(message, peekable=True):
+        ts = datetime.now().strftime("%H:%M:%S")
+        sender = getattr(message, "role", "") or "system"
+        content = getattr(message, "content", str(message))
+        # Truncate for display
+        preview = content[:300] if content else ""
+        log_entry = {"ts": ts, "text": f"[{sender}] {preview}"}
+
+        # Add to sender's log
+        if sender in role_logs:
+            role_logs[sender].append(log_entry)
+        # Also add to global run_logs
+        run_logs.append(f"[{sender}] {preview}")
+
+        return original_publish(message, peekable)
+
+    object.__setattr__(env, "publish_message", patched_publish)
+
+    # Wrap each role's run to capture start/end
+    for role in hired:
+        rname = role.__class__.__name__
+        original_run = role.run
+
+        def make_wrapper(name, orig):
+            async def wrapped(*args, **kwargs):
+                ts = datetime.now().strftime("%H:%M:%S")
+                role_logs.setdefault(name, []).append({"ts": ts, "text": f"▶ {name} started thinking..."})
+                try:
+                    result = await orig(*args, **kwargs)
+                    ts2 = datetime.now().strftime("%H:%M:%S")
+                    role_logs[name].append({"ts": ts2, "text": f"✓ {name} finished action."})
+                    return result
+                except Exception as e:
+                    ts2 = datetime.now().strftime("%H:%M:%S")
+                    role_logs[name].append({"ts": ts2, "text": f"✗ {name} error: {e}"})
+                    raise
+            return wrapped
+
+        role.run = make_wrapper(rname, original_run)
 
     async def _run():
         try:
@@ -171,6 +228,26 @@ async def read_file(path: str):
         return {"path": path, "content": content}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ---------------------------------------------------------------------------
+# Agent Process — per-role logs
+# ---------------------------------------------------------------------------
+
+@app.get("/api/agent-roles")
+async def agent_roles():
+    """Return active roles and their log counts."""
+    return [
+        {"name": r, "log_count": len(role_logs.get(r, []))}
+        for r in active_roles
+    ]
+
+
+@app.get("/api/agent-logs")
+async def agent_logs(role: str, after: int = 0):
+    """Return logs for a specific role after a given index."""
+    logs = role_logs.get(role, [])
+    return {"role": role, "logs": logs[after:], "total": len(logs)}
 
 
 # ---------------------------------------------------------------------------
