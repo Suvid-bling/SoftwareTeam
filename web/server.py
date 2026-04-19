@@ -144,27 +144,75 @@ async def run_team(req: RunRequest):
 
     object.__setattr__(env, "publish_message", patched_publish)
 
-    # Wrap each role's run to capture start/end
+    # Wrap each role's _think, _act, and run to capture detailed process logs
     for role in hired:
         rname = role.__class__.__name__
-        original_run = role.run
 
-        def make_wrapper(name, orig):
+        def _add_role_log(name, text):
+            ts = datetime.now().strftime("%H:%M:%S")
+            role_logs.setdefault(name, []).append({"ts": ts, "text": text})
+
+        # Wrap _think
+        original_think = role._think
+
+        def make_think_wrapper(name, orig, r):
             async def wrapped(*args, **kwargs):
-                ts = datetime.now().strftime("%H:%M:%S")
-                role_logs.setdefault(name, []).append({"ts": ts, "text": f"▶ {name} started thinking..."})
+                _add_role_log(name, f"🧠 {name} thinking — choosing next action...")
+                result = await orig(*args, **kwargs)
+                # After _think, rc.todo holds the chosen action
+                todo = getattr(r.rc, "todo", None)
+                action_name = getattr(todo, "name", str(todo)) if todo else "None"
+                state = getattr(r.rc, "state", "?")
+                if result:
+                    _add_role_log(name, f"💡 Decided: [{action_name}] (state={state})")
+                else:
+                    _add_role_log(name, f"💤 Nothing to do (state={state})")
+                return result
+            return wrapped
+
+        object.__setattr__(role, "_think", make_think_wrapper(rname, original_think, role))
+
+        # Wrap _act
+        original_act = role._act
+
+        def make_act_wrapper(name, orig, r):
+            async def wrapped(*args, **kwargs):
+                todo = getattr(r.rc, "todo", None)
+                action_name = getattr(todo, "name", str(todo)) if todo else "unknown"
+                _add_role_log(name, f"⚙️ Executing: {action_name}...")
                 try:
-                    result = await orig(*args, **kwargs)
-                    ts2 = datetime.now().strftime("%H:%M:%S")
-                    role_logs[name].append({"ts": ts2, "text": f"✓ {name} finished action."})
-                    return result
+                    msg = await orig(*args, **kwargs)
+                    # Capture output summary
+                    content = getattr(msg, "content", str(msg)) or ""
+                    preview = content[:500].replace("\n", " ↵ ")
+                    _add_role_log(name, f"📝 Output: {preview}")
+                    return msg
                 except Exception as e:
-                    ts2 = datetime.now().strftime("%H:%M:%S")
-                    role_logs[name].append({"ts": ts2, "text": f"✗ {name} error: {e}"})
+                    _add_role_log(name, f"✗ Action {action_name} failed: {e}")
                     raise
             return wrapped
 
-        role.run = make_wrapper(rname, original_run)
+        object.__setattr__(role, "_act", make_act_wrapper(rname, original_act, role))
+
+        # Wrap run (top-level)
+        original_run = role.run
+
+        def make_run_wrapper(name, orig):
+            async def wrapped(*args, **kwargs):
+                _add_role_log(name, f"▶ {name} activated")
+                try:
+                    result = await orig(*args, **kwargs)
+                    if result:
+                        _add_role_log(name, f"✓ {name} completed round")
+                    else:
+                        _add_role_log(name, f"⏸ {name} idle — no new messages")
+                    return result
+                except Exception as e:
+                    _add_role_log(name, f"✗ {name} error: {e}")
+                    raise
+            return wrapped
+
+        role.run = make_run_wrapper(rname, original_run)
 
     async def _run():
         try:
