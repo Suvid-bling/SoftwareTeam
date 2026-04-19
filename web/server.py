@@ -104,17 +104,24 @@ async def run_team(req: RunRequest):
     active_roles.clear()
 
     # Build role instances
+    # In teamleader mode, pipeline-only roles (fixed SOP) need use_fixed_sop=False
+    # so they use dynamic RoleZero behavior instead of crashing on WriteDesign/WritePRD
+    FIXED_SOP_ROLES = {"ProductManager", "Architect", "ProjectManager"}
+    is_teamleader = req.mode == "teamleader"
+
     hired = []
     for role_name in req.roles:
         entry = ROLE_REGISTRY.get(role_name)
         if entry:
-            hired.append(entry["cls"](**entry["kwargs"]))
+            kwargs = dict(entry["kwargs"])
+            if is_teamleader and role_name in FIXED_SOP_ROLES:
+                kwargs["use_fixed_sop"] = False
+            hired.append(entry["cls"](**kwargs))
 
     if not hired:
         return JSONResponse({"error": "No valid roles selected."}, status_code=400)
 
     # Create team based on mode
-    is_teamleader = req.mode == "teamleader"
     team_instance = Team(use_mgx=is_teamleader)
     if is_teamleader:
         object.__setattr__(team_instance.env, "is_public_chat", False)

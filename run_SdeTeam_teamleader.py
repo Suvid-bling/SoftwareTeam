@@ -17,7 +17,7 @@ async def main():
     team.hire([
         TeamLeader(),
         Engineer2(),       # coding
-        #Architect(),       # design & review
+        Architect(),       # design & review
         QaEngineer(),      # testing
     ])
     team.invest(10.0)

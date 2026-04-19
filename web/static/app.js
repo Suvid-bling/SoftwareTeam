@@ -133,12 +133,15 @@ function switchMode(mode) {
   document.querySelectorAll("#role-list input[type=checkbox]").forEach((cb) => {
     const checked = defaults.includes(cb.value);
     cb.checked = checked;
+    cb.disabled = false;
     if (checked) selectedRoles.add(cb.value);
+    const label = cb.closest("label");
+    label.classList.remove("opacity-40", "pointer-events-none", "opacity-80");
   });
 }
 
-modePipeline.addEventListener("click", () => { console.log("switch to pipeline"); switchMode("pipeline"); });
-modeTeamleader.addEventListener("click", () => { console.log("switch to teamleader"); switchMode("teamleader"); });
+modePipeline.addEventListener("click", () => { console.log("switch to pipeline"); switchMode("pipeline"); loadRoles(); });
+modeTeamleader.addEventListener("click", () => { console.log("switch to teamleader"); switchMode("teamleader"); loadRoles(); });
 
 // ---------------------------------------------------------------------------
 // Roles

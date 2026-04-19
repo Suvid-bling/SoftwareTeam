@@ -525,6 +525,7 @@ class Role(BaseRole, SerializationMixin, ContextMixin, BaseModel):
         if not await self._observe():
             # If there is no new information, suspend and wait
             logger.debug(f"{self._setting}: no news. waiting.")
+            self.set_todo(None)  # clear stale todo so is_idle returns True
             return
 
         logger.info(f"{self._setting}: observed news, entering react(). react_mode={self.rc.react_mode}")
