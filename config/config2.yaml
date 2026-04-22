@@ -2,9 +2,11 @@
 # Reflected Code: https://github.com/geekan/MetaGPT/blob/main/metagpt/config2.py
 # Config Docs: https://docs.deepwisdom.ai/main/en/guide/get_started/configuration.html
 llm:
-  api_type: "claude"
-  model: "k2p5"
-  base_url: "https://api.kimi.com/coding"
-  api_key: "sk-kimi-7dMdDQgxULGom1dqqEJY8kv2SFqmSg7JrRlHiIwYq3r3rgwOemQ7v1mKchgJWrmX"
+  api_type: "openai"
+  model: "ep-20260209154522-drqjw"
+  base_url: "https://ark.cn-beijing.volces.com/api/v3"
+  api_key: "17428d2c-9b67-472c-8f14-41f028983bdc"
+  max_tokens: 3000
+  temperature: 0.0
   stream: false
   timeout: 300
