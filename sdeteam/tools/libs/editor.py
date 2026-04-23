@@ -1092,6 +1092,13 @@ class Editor(BaseModel):
         """Tries to fix the path if it is not absolute."""
         if not isinstance(path, Path):
             path = Path(path)
+        
+        # Strip redundant "workspace/" prefix to avoid nested workspace/workspace/ paths
+        # This happens when LLM includes "workspace/" but working_dir already ends in "workspace"
+        path_str = str(path)
+        if path_str.startswith("workspace/"):
+            path = Path(path_str[len("workspace/"):])
+        
         if not path.is_absolute():
             path = self.working_dir / path
         return path

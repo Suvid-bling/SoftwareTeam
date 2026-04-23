@@ -22,7 +22,7 @@ from sdeteam.logs import logger
 from sdeteam.roles import (
     ProductManager, Architect, ProjectManager,
     Engineer, QaEngineer, Searcher, Sales,
-    DataAnalyst, TeamLeader, Engineer2,
+    DataAnalyst, TeamLeader, Engineer2, TestEngineer, Reviewer,
 )
 from sdeteam.team import Team
 
@@ -51,6 +51,8 @@ ROLE_REGISTRY = {
     "DataAnalyst":    {"cls": DataAnalyst,      "kwargs": {},                      "desc": "DataAnalyst — data analysis"},
     "TeamLeader":     {"cls": TeamLeader,       "kwargs": {},                      "desc": "TeamLeader — leads DI team"},
     "Engineer2":      {"cls": Engineer2,        "kwargs": {},                      "desc": "Engineer2 — DI engineer"},
+    "TestEngineer":   {"cls": TestEngineer,     "kwargs": {},                      "desc": "Tom — test engineer (DI)"},
+    "Reviewer":       {"cls": Reviewer,         "kwargs": {},                      "desc": "Ryan — code reviewer (DI)"},
 }
 
 WORKSPACE_ROOT = Path("workspace")

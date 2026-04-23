@@ -261,6 +261,8 @@ const ROLE_COLORS = {
   DataAnalyst: "border-blue-600 bg-blue-900/20",
   TeamLeader: "border-indigo-600 bg-indigo-900/20",
   Engineer2: "border-teal-600 bg-teal-900/20",
+  TestEngineer: "border-lime-600 bg-lime-900/20",
+  Reviewer: "border-amber-600 bg-amber-900/20",
 };
 const DEFAULT_COLOR = "border-gray-600 bg-gray-900/20";
 

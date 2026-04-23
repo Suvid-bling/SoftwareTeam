@@ -178,6 +178,9 @@ class Terminal:
                 *lines, tmp = output.splitlines(True)
                 for line in lines:
                     line = line.decode(errors="ignore")
+                    # Ensure line ends with newline for proper formatting
+                    if line and not line.endswith('\n'):
+                        line += '\n'
                     # log stdout in real-time
                     await observer.async_report(line, "output")
                     cmd_output.append(line)

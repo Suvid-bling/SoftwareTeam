@@ -12,6 +12,8 @@ from sdeteam.roles.sales import Sales
 from sdeteam.roles.di.data_analyst import DataAnalyst
 from sdeteam.roles.di.team_leader import TeamLeader
 from sdeteam.roles.di.engineer2 import Engineer2
+from sdeteam.roles.test_engineer import TestEngineer
+from sdeteam.roles.reviewer import Reviewer
 
 
 __all__ = [
@@ -26,4 +28,6 @@ __all__ = [
     "DataAnalyst",
     "TeamLeader",
     "Engineer2",
+    "TestEngineer",
+    "Reviewer",
 ]

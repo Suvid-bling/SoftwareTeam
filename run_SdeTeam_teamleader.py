@@ -5,7 +5,8 @@ from sdeteam.logs import logger
 from sdeteam.roles.di.team_leader import TeamLeader
 from sdeteam.roles.di.engineer2 import Engineer2
 from sdeteam.roles.architect import Architect
-from sdeteam.roles.qa_engineer import QaEngineer
+from sdeteam.roles.test_engineer import TestEngineer
+from sdeteam.roles.reviewer import Reviewer
 
 from sdeteam.team import Team
 
@@ -16,28 +17,20 @@ async def main():
     team.env.is_public_chat = False  # prevent broadcast, use direct routing only
     team.hire([
         TeamLeader(),
+        Architect(),
         Engineer2(),       # coding
-        # Architect(),       # design & review
-        # QaEngineer(),      # testing
+        TestEngineer(),    # testing (DI mode)
+        Reviewer(),         # code review (DI mode)
     ])
     team.invest(10.0)
     try:
         await team.run(
             n_round=100000,
             idea="""
-        Write comprehensive tests for the Flask login application at workspace/login_app/.
-        Tasks:
-        1. Create a tests/ folder under workspace/login_app/
-        2. Write test files in workspace/login_app/tests/:
-        - test_auth.py: Test user registration and login endpoints
-        - test_models.py: Test User model and database operations
-        3. Tests should cover:
-        - User signup with valid/invalid data
-        - User login with correct/incorrect credentials
-        - Successful login redirect to success page
-        - Password hashing verification
-        4. Use pytest framework
-        5. Run all tests and report results
+请对 2048_game 项目进行代码审查。和测试
+
+项目路径: 2048_game/
+
         """,
         )
     except Exception as e:

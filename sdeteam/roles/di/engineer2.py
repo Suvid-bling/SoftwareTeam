@@ -82,7 +82,10 @@ class Engineer2(RoleZero):
             logger.error(f"{self._setting}: terminal.run_command('pwd') failed: {e}", exc_info=True)
             print(f">>> _format_instruction() 'pwd' FAILED: {e}", flush=True)
             raise
+        
+        # Use current directory as working dir for editor
         self.editor._set_workdir(current_directory)
+        
         state = {
             "editor_open_file": self.editor.current_file,
             "current_directory": current_directory,
