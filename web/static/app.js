@@ -9,6 +9,19 @@ let isRunning = false;
 let currentMode = "pipeline"; // "pipeline" or "teamleader"
 const selectedRoles = new Set();
 
+// 中文角色名称映射
+const ROLE_NAMES_CN = {
+  TeamLeader: "协调智能体",
+  Architect: "规划智能体",
+  Engineer2: "开发智能体",
+  TestEngineer: "测试智能体",
+  Reviewer: "代码审查智能体",
+};
+
+function getRoleName(role) {
+  return ROLE_NAMES_CN[role] || role;
+}
+
 // Tooltip ref
 const logTooltip = document.getElementById("log-tooltip");
 
@@ -114,8 +127,8 @@ terminalInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.pr
 // Mode switching
 // ---------------------------------------------------------------------------
 
-const PIPELINE_DEFAULTS = ["ProductManager", "Architect", "ProjectManager", "Engineer", "QaEngineer"];
-const TEAMLEADER_DEFAULTS = ["TeamLeader", "Engineer2", "QaEngineer"];
+const PIPELINE_DEFAULTS = ["TeamLeader", "Architect", "Engineer2", "TestEngineer", "Reviewer"];
+const TEAMLEADER_DEFAULTS = ["TeamLeader", "Architect", "Engineer2", "TestEngineer", "Reviewer"];
 
 function switchMode(mode) {
   currentMode = mode;
@@ -161,7 +174,7 @@ async function loadRoles() {
       <input type="checkbox" class="mt-0.5 accent-blue-500" value="${r.name}"
              ${selectedRoles.has(r.name) ? "checked" : ""} />
       <span>
-        <span class="block text-sm font-medium">${r.name}</span>
+        <span class="block text-sm font-medium">${getRoleName(r.name)}</span>
         <span class="block text-xs text-gray-500">${r.desc}</span>
       </span>`;
     el.querySelector("input").addEventListener("change", (e) => {
@@ -251,15 +264,8 @@ async function pollStatus() {
 // ---------------------------------------------------------------------------
 
 const ROLE_COLORS = {
-  ProductManager: "border-purple-600 bg-purple-900/20",
-  Architect: "border-cyan-600 bg-cyan-900/20",
-  ProjectManager: "border-yellow-600 bg-yellow-900/20",
-  Engineer: "border-green-600 bg-green-900/20",
-  QaEngineer: "border-red-600 bg-red-900/20",
-  Searcher: "border-orange-600 bg-orange-900/20",
-  Sales: "border-pink-600 bg-pink-900/20",
-  DataAnalyst: "border-blue-600 bg-blue-900/20",
   TeamLeader: "border-indigo-600 bg-indigo-900/20",
+  Architect: "border-cyan-600 bg-cyan-900/20",
   Engineer2: "border-teal-600 bg-teal-900/20",
   TestEngineer: "border-lime-600 bg-lime-900/20",
   Reviewer: "border-amber-600 bg-amber-900/20",
@@ -296,7 +302,7 @@ function renderSlider() {
     const color = ROLE_COLORS[r.name] || DEFAULT_COLOR;
     const btn = document.createElement("button");
     btn.className = `shrink-0 px-3 py-1.5 rounded-lg border text-xs font-medium transition ${color} hover:opacity-80`;
-    btn.textContent = `${r.name} (${r.log_count})`;
+    btn.textContent = `${getRoleName(r.name)} (${r.log_count})`;
     btn.addEventListener("click", () => {
       visibleRoleStart = Math.max(0, i - Math.floor(MAX_VISIBLE_ROLES / 2));
       renderAgentLogs();
@@ -329,7 +335,7 @@ async function renderAgentLogs() {
     const header = document.createElement("div");
     header.className = "px-3 py-2 border-b border-gray-700 flex items-center justify-between";
     header.innerHTML = `
-      <span class="text-sm font-semibold">${role.name}</span>
+      <span class="text-sm font-semibold">${getRoleName(role.name)}</span>
       <span class="text-xs text-gray-500">${role.log_count} entries</span>`;
     card.appendChild(header);
 

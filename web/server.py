@@ -41,18 +41,11 @@ active_roles: list[str] = []  # roles hired for current run
 
 # Available roles registry
 ROLE_REGISTRY = {
-    "ProductManager": {"cls": ProductManager, "kwargs": {"use_fixed_sop": True}, "desc": "Alice — writes PRD"},
-    "Architect":      {"cls": Architect,       "kwargs": {"use_fixed_sop": True}, "desc": "Bob — system design"},
-    "ProjectManager": {"cls": ProjectManager,  "kwargs": {"use_fixed_sop": True}, "desc": "Eve — task breakdown"},
-    "Engineer":       {"cls": Engineer,         "kwargs": {},                      "desc": "Alex — writes code"},
-    "QaEngineer":     {"cls": QaEngineer,       "kwargs": {},                      "desc": "Edward — writes & runs tests"},
-    "Searcher":       {"cls": Searcher,         "kwargs": {},                      "desc": "Searcher — web research"},
-    "Sales":          {"cls": Sales,            "kwargs": {},                      "desc": "Sales — customer facing"},
-    "DataAnalyst":    {"cls": DataAnalyst,      "kwargs": {},                      "desc": "DataAnalyst — data analysis"},
-    "TeamLeader":     {"cls": TeamLeader,       "kwargs": {},                      "desc": "TeamLeader — leads DI team"},
-    "Engineer2":      {"cls": Engineer2,        "kwargs": {},                      "desc": "Engineer2 — DI engineer"},
-    "TestEngineer":   {"cls": TestEngineer,     "kwargs": {},                      "desc": "Tom — test engineer (DI)"},
-    "Reviewer":       {"cls": Reviewer,         "kwargs": {},                      "desc": "Ryan — code reviewer (DI)"},
+    "TeamLeader":     {"cls": TeamLeader,       "kwargs": {},                      "desc": "协调智能体 - 团队协调"},
+    "Architect":      {"cls": Architect,       "kwargs": {"use_fixed_sop": True}, "desc": "规划智能体 - 系统设计"},
+    "Engineer2":      {"cls": Engineer2,        "kwargs": {},                      "desc": "开发智能体 - 开发编码"},
+    "TestEngineer":   {"cls": TestEngineer,     "kwargs": {},                      "desc": "测试智能体 - 测试验证"},
+    "Reviewer":       {"cls": Reviewer,         "kwargs": {},                      "desc": "代码审查智能体 - 代码审查"},
 }
 
 WORKSPACE_ROOT = Path("workspace")

@@ -7,6 +7,8 @@ from pydantic import Field
 
 from sdeteam.logs import logger
 
+from sdeteam.actions.di.run_command import RunCommand
+
 # from sdeteam.actions.write_code_review import ValidateAndRewriteCode
 from sdeteam.prompts.di.engineer2 import (
     CURRENT_STATE,
@@ -53,6 +55,11 @@ class Engineer2(RoleZero):
     run_eval: bool = False
     output_diff: str = ""
     max_react_loop: int = 40
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Watch for RunCommand messages from TeamLeader
+        self._watch({RunCommand})
 
     async def _think(self) -> bool:
         print(f">>> Engineer2._think() ENTERED for {self._setting}", flush=True)

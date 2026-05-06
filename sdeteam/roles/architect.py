@@ -5,6 +5,7 @@ from pydantic import Field
 
 from sdeteam.actions.design_api import WriteDesign
 from sdeteam.actions.write_prd import WritePRD
+from sdeteam.actions.di.run_command import RunCommand
 from sdeteam.prompts.di.architect import ARCHITECT_EXAMPLE, ARCHITECT_INSTRUCTION
 from sdeteam.roles.di.role_zero import RoleZero
 from sdeteam.tools.libs.terminal import Terminal
@@ -44,8 +45,8 @@ class Architect(RoleZero):
         # Initialize actions specific to the Architect role
         self.set_actions([WriteDesign])
 
-        # Set events or actions the Architect should watch or be aware of
-        self._watch({WritePRD})
+        # Watch for both WritePRD (pipeline mode) and RunCommand (TeamLeader mode)
+        self._watch({WritePRD, RunCommand})
 
     def _retrieve_experience(self) -> str:
         return ARCHITECT_EXAMPLE

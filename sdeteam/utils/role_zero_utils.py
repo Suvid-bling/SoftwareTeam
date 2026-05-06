@@ -24,6 +24,23 @@ from sdeteam.utils.repair_llm_raw_output import (
 )
 
 
+def _fix_json_string(json_str: str) -> str:
+    """Fix common JSON issues that cause parsing failures."""
+    # Remove trailing commas before ] or }
+    json_str = re.sub(r',\s*([}\]])', r'\1', json_str)
+    # Fix missing commas between objects in array: }{ -> },{
+    json_str = re.sub(r'\}\s*\{', '},{', json_str)
+    # Fix missing commas between array elements: ][ -> ],[
+    json_str = re.sub(r'\]\s*\[', '],[', json_str)
+    # Ensure proper array wrapping
+    json_str = json_str.strip()
+    if json_str.startswith('{') and not json_str.startswith('['):
+        # Check if it's multiple objects that should be an array
+        if json_str.count('{') > 1 and '},{' in json_str:
+            json_str = '[' + json_str + ']'
+    return json_str
+
+
 async def parse_browser_actions(memory: list[Message], browser) -> list[Message]:
     if not browser.is_empty_page:
         pattern = re.compile(r"Command Browser\.(\w+) executed")
@@ -110,6 +127,8 @@ async def parse_commands(command_rsp: str, llm, exclusive_tool_commands: list[st
         commands = CodeParser.parse_code(block=None, lang="json", text=command_rsp)
         if commands.endswith("]") and not commands.startswith("["):
             commands = "[" + commands
+        # Try to fix common JSON issues before parsing
+        commands = _fix_json_string(commands)
         commands = json.loads(repair_llm_raw_output(output=commands, req_keys=[None], repair_type=RepairType.JSON))
     except json.JSONDecodeError as e:
         logger.warning(f"Failed to parse JSON for: {command_rsp}. Trying to repair...")

@@ -16,21 +16,19 @@ async def main():
     team = Team()
     team.env.is_public_chat = False  # prevent broadcast, use direct routing only
     team.hire([
-        TeamLeader(),
-        Architect(),
-        Engineer2(),       # coding
-        TestEngineer(),    # testing (DI mode)
-        Reviewer(),         # code review (DI mode)
+        TeamLeader(), #协调智能体
+        Architect(),  #规划智能体
+        Engineer2(),  #开发智能体    
+        TestEngineer(),   #测试智能体
+        Reviewer(),       #代码审查智能体
     ])
     team.invest(10.0)
     try:
         await team.run(
             n_round=100000,
             idea="""
-请对 2048_game 项目进行代码审查。和测试
-
-项目路径: 2048_game/
-
+创建一个Python计算器程序，支持加减乘除。
+项目目录：calc/
         """,
         )
     except Exception as e:
